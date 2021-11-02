@@ -2,16 +2,11 @@ import obspython as obs
 from pynput.mouse import Controller  # python -m pip install pynput
 from screeninfo import get_monitors  # python -m pip install screeninfo
 
-
 c = Controller()
 get_position = lambda: c.position
-zoom_id_tog = None
-follow_id_tog = None
-ZOOM_NAME_TOG = "zoom.toggle"
-FOLLOW_NAME_TOG = "follow.toggle"
-ZOOM_DESC_TOG = "Enable/Disable Mouse Zoom"
-FOLLOW_DESC_TOG = "Enable/Disable Mouse Follow"
 USE_MANUAL_MONITOR_SIZE = "Manual Monitor Size"
+
+listenToScene = "Webcam w/ Screen 2"
 
 # -------------------------------------------------------------------
 
@@ -216,6 +211,7 @@ class CursorWindow:
     def tracking(self):
         if self.lock:
             if self.track:
+                current_scene = obs.obs_frontend_get_current_scene()
                 self.follow(get_position())
             self.set_crop(1)
         else:
@@ -315,54 +311,24 @@ def script_properties():
 
 
 def script_load(settings):
-    global zoom_id_tog
-    zoom_id_tog = obs.obs_hotkey_register_frontend(
-        ZOOM_NAME_TOG, ZOOM_DESC_TOG, toggle_zoom
-    )
-    hotkey_save_array = obs.obs_data_get_array(settings, ZOOM_NAME_TOG)
-    obs.obs_hotkey_load(zoom_id_tog, hotkey_save_array)
-    obs.obs_data_array_release(hotkey_save_array)
+    script_update(settings)
 
-    global follow_id_tog
-    follow_id_tog = obs.obs_hotkey_register_frontend(
-        FOLLOW_NAME_TOG, FOLLOW_DESC_TOG, toggle_follow
-    )
-    hotkey_save_array = obs.obs_data_get_array(settings, FOLLOW_NAME_TOG)
-    obs.obs_hotkey_load(follow_id_tog, hotkey_save_array)
-    obs.obs_data_array_release(hotkey_save_array)
+    if zoom.source_name != "" and zoom.flag:
+        zoom.update_monitor_size()
+        obs.timer_add(zoom.tick, zoom.refresh_rate)
+        zoom.lock = True
+        zoom.flag = False
+    elif not zoom.flag:
+        zoom.flag = True
+        zoom.lock = False
+        
+    updateShouldHandle()
+    obs.obs_frontend_add_event_callback(on_event)
 
+def updateShouldHandle():
+    zoom.track = obs.obs_source_get_name(obs.obs_frontend_get_current_scene()) == listenToScene
 
+def on_event(event):
+    if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        updateShouldHandle()
 
-def script_unload():
-    obs.obs_hotkey_unregister(toggle_zoom)
-    obs.obs_hotkey_unregister(toggle_follow)
-
-
-
-def script_save(settings):
-    hotkey_save_array = obs.obs_hotkey_save(zoom_id_tog)
-    obs.obs_data_set_array(settings, ZOOM_NAME_TOG, hotkey_save_array)
-    obs.obs_data_array_release(hotkey_save_array)
-
-    hotkey_save_array = obs.obs_hotkey_save(follow_id_tog)
-    obs.obs_data_set_array(settings, FOLLOW_NAME_TOG, hotkey_save_array)
-    obs.obs_data_array_release(hotkey_save_array)
-
-
-def toggle_zoom(pressed):
-    if pressed:
-        if zoom.source_name != "" and zoom.flag:
-            zoom.update_monitor_size()
-            obs.timer_add(zoom.tick, zoom.refresh_rate)
-            zoom.lock = True
-            zoom.flag = False
-        elif not zoom.flag:
-            zoom.flag = True
-            zoom.lock = False
-
-def toggle_follow(pressed):
-    if pressed:
-        if zoom.track:
-            zoom.track = False
-        elif not zoom.track:
-            zoom.track = True
