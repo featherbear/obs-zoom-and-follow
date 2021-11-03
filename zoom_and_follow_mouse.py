@@ -311,18 +311,6 @@ def script_properties():
 
 
 def script_load(settings):
-    script_update(settings)
-
-    if zoom.source_name != "" and zoom.flag:
-        zoom.update_monitor_size()
-        obs.timer_add(zoom.tick, zoom.refresh_rate)
-        zoom.lock = True
-        zoom.flag = False
-    elif not zoom.flag:
-        zoom.flag = True
-        zoom.lock = False
-        
-    updateShouldHandle()
     obs.obs_frontend_add_event_callback(on_event)
 
 def updateShouldHandle():
@@ -330,5 +318,15 @@ def updateShouldHandle():
 
 def on_event(event):
     if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
+        updateShouldHandle()
+    elif event == obs.OBS_FRONTEND_EVENT_FINISHED_LOADING:
+        if zoom.source_name != "" and zoom.flag:
+            zoom.update_monitor_size()
+            obs.timer_add(zoom.tick, zoom.refresh_rate)
+            zoom.lock = True
+            zoom.flag = False
+        elif not zoom.flag:
+            zoom.flag = True
+            zoom.lock = False
         updateShouldHandle()
 
